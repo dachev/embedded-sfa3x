@@ -32,14 +32,19 @@
 #include "sensirion_uart_hal.h"
 #include "sensirion_common.h"
 #include "sensirion_config.h"
+#include <fcntl.h>
+#include <stdio.h>
+#include <termios.h>
+#include <unistd.h>
 
-/*
- * INSTRUCTIONS
- * ============
- *
- * Implement all functions where they are marked with TODO: implement
- * Follow the function specification in the comments.
- */
+// Adapted from
+// http://www.raspberry-projects.com/pi/programming-in-c/uart-serial-port/using-the-uart
+
+#ifndef SENSIRION_UART_TTYDEV
+#define SENSIRION_UART_TTYDEV "/dev/ttyUSB0"
+#endif
+
+static int uart_fd = -1;
 
 /**
  * sensirion_uart_hal_select_port() - select the UART port index to use
@@ -49,62 +54,67 @@
  * Return:      0 on success, an error code otherwise
  */
 int16_t sensirion_uart_hal_select_port(uint8_t port) {
-    // TODO: implement
-    return NOT_IMPLEMENTED_ERROR;
+    return 0;
 }
 
-/**
- * sensirion_uart_hal_init() - initialize UART
- *
- * Return:      0 on success, an error code otherwise
- */
 int16_t sensirion_uart_hal_init() {
-    // TODO: implement
-    return NOT_IMPLEMENTED_ERROR;
+    // The flags (defined in fcntl.h):
+    //    Access modes (use 1 of these):
+    //        O_RDONLY - Open for reading only.
+    //        O_RDWR - Open for reading and writing.
+    //        O_WRONLY - Open for writing only.
+    //    O_NDELAY / O_NONBLOCK (same function) - Enables nonblocking mode.
+    //      When set read requests on the file can return immediately with a
+    //      failure status if there is no input immediately available (instead
+    //      of blocking). Likewise, write requests can also return immediately
+    //      with a failure status if the output can't be written immediately.
+    //    O_NOCTTY - When set and path identifies a terminal device, open()
+    //      shall not cause the terminal device to become the controlling
+    //      terminal for the process.
+    uart_fd = open(SENSIRION_UART_TTYDEV, O_RDWR | O_NOCTTY);
+    if (uart_fd == -1) {
+        fprintf(stderr, "Error opening UART. Ensure it's not otherwise used\n");
+        return -1;
+    }
+
+    // see http://pubs.opengroup.org/onlinepubs/007908799/xsh/termios.h.html:
+    //    CSIZE:- CS5, CS6, CS7, CS8
+    //    CLOCAL - Ignore modem status lines
+    //    CREAD - Enable receiver
+    //    IGNPAR = Ignore characters with parity errors
+    //    ICRNL - Map CR to NL on input (Use for ASCII comms where you want to
+    //                                   auto correct end of line characters,
+    //                                   don't use for bianry comms)
+    //    PARENB - Parity enable
+    //    PARODD - Odd parity (else even)
+    struct termios options;
+    tcgetattr(uart_fd, &options);
+    options.c_cflag = B115200 | CS8 | CLOCAL | CREAD;  // set baud rate
+    options.c_iflag = IGNPAR;
+    options.c_oflag = 0;
+    options.c_lflag = 0;
+    tcflush(uart_fd, TCIFLUSH);
+    tcsetattr(uart_fd, TCSANOW, &options);
+    return 0;
 }
 
-/**
- * sensirion_uart_hal_free() - release UART resources
- *
- * Return:      0 on success, an error code otherwise
- */
 int16_t sensirion_uart_hal_free() {
-    // TODO: implement
-    return NOT_IMPLEMENTED_ERROR;
+    return close(uart_fd);
 }
 
-/**
- * sensirion_uart_hal_tx() - transmit data over UART
- *
- * @data_len:   number of bytes to send
- * @data:       data to send
- * Return:      Number of bytes sent or a negative error code
- */
 int16_t sensirion_uart_hal_tx(uint16_t data_len, const uint8_t* data) {
-    // TODO: implement
-    return NOT_IMPLEMENTED_ERROR;
+    if (uart_fd == -1)
+        return -1;
+
+    return write(uart_fd, (void*)data, data_len);
 }
 
-/**
- * sensirion_uart_hal_rx() - receive data over UART
- *
- * @data_len:   max number of bytes to receive
- * @data:       Memory where received data is stored
- * Return:      Number of bytes received or a negative error code
- */
 int16_t sensirion_uart_hal_rx(uint16_t max_data_len, uint8_t* data) {
-    // TODO: implement
-    return NOT_IMPLEMENTED_ERROR;
-}
+    if (uart_fd == -1)
+        return -1;
 
-/**
- * Sleep for a given number of microseconds. The function should delay the
- * execution for at least the given time, but may also sleep longer.
- *
- * Despite the unit, a <10 millisecond precision is sufficient.
- *
- * @param useconds the sleep time in microseconds
- */
+    return read(uart_fd, (void*)data, max_data_len);
+}
 void sensirion_uart_hal_sleep_usec(uint32_t useconds) {
-    // TODO: implement
+    usleep(useconds);
 }
