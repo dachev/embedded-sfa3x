@@ -15,8 +15,7 @@ endif
 all: sfa3x_uart_example_usage
 
 sfa3x_uart_example_usage: clean
-	$(CC) $(CFLAGS) -o $@ ${sfa3x_sources} ${uart_sources} \
-		${uart_implementation} ${common_sources} sfa3x_uart_example_usage.c
+	$(CC) $(CFLAGS) -o $@ ${sfa3x_sources} ${uart_sources} ${uart_implementation} ${common_sources} sfa3x_uart_example_usage.c -ljansson
 
 clean:
 	$(RM) sfa3x_uart_example_usage
