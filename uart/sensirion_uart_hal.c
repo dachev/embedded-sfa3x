@@ -41,7 +41,7 @@
 // http://www.raspberry-projects.com/pi/programming-in-c/uart-serial-port/using-the-uart
 
 #ifndef SENSIRION_UART_TTYDEV
-#define SENSIRION_UART_TTYDEV "/dev/ttyUSB0"
+#define SENSIRION_UART_TTYDEV "/dev/ttyAMA0"
 #endif
 
 static int uart_fd = -1;
