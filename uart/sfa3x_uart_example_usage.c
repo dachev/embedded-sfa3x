@@ -30,6 +30,7 @@
  */
 
 #include <stdio.h>  // printf
+#include <jansson.h>
 
 #include "sensirion_common.h"
 #include "sensirion_uart_hal.h"
@@ -66,8 +67,8 @@ int main(void) {
     // Start Measurement
     error = sfa3x_start_continuous_measurement();
     if (error) {
-        printf("Error executing sfa3x_start_continuous_measurement(): %i\n",
-               error);
+        printf("Error executing sfa3x_start_continuous_measurement(): %i\n", error);
+        return error;
     }
 
     for (;;) {
@@ -83,17 +84,31 @@ int main(void) {
 
         if (error) {
             printf("Error reading measurement values: %i\n", error);
-        } else {
-            printf("Measurement:\n");
-            printf("  Formaldehyde concentration: %.1f\n", hcho / 5.0f);
-            printf("  Relative humidity: %.2f\n", relative_humidity / 100.0f);
-            printf("  Temperature: %.2f\n", temperature / 200.0f);
+            return error;
         }
+
+        json_t *root = json_object();
+        json_object_set_new(root, "hcho", json_real(hcho/5.0f));
+        json_object_set_new(root, "humidity", json_real(relative_humidity/100.0f));
+        json_object_set_new(root, "temperature", json_real(temperature/200.0f));
+        error = json_dump_file(root, "/var/www/html/index.json", JSON_INDENT(2) | JSON_REAL_PRECISION(4));
+        json_decref(root);
+
+        if (error) {
+            printf("Error writing JSON: %i\n", error);
+            return error;
+        }
+
+        printf("Measurement:\n");
+        printf("  Formaldehyde concentration: %.1f\n", hcho / 5.0f);
+        printf("  Relative humidity: %.2f\n", relative_humidity / 100.0f);
+        printf("  Temperature: %.2f\n", temperature / 200.0f);
     }
 
     error = sfa3x_stop_measurement();
     if (error) {
         printf("Error executing sfa3x_stop_measurement(): %i\n", error);
+        return error;
     }
 
     return 0;
